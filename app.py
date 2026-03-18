@@ -1,6 +1,7 @@
 import streamlit as st
 import zipfile
 import io
+import time
 from modules.splitter import extract_chapters
 from modules.scanner import check_missing_chapters
 from modules.html_converter import generate_html_files
@@ -24,12 +25,29 @@ if "html_zip" not in st.session_state:
     st.session_state.html_zip = None
 if "found_numbers" not in st.session_state:
     st.session_state.found_numbers = set()
+if "processed_file_id" not in st.session_state:
+    st.session_state.processed_file_id = None
 
 # --- UI: FILE UPLOAD & METADATA ---
 uploaded_file = st.file_uploader("1. Upload raw .txt file", type=["txt"])
 
 default_title = "Raw KR name"
 if uploaded_file is not None:
+    
+    # Check if this is a brand new file being dropped in
+    if st.session_state.processed_file_id != uploaded_file.file_id:
+        
+        # Show the GIF
+        gif_placeholder = st.empty()
+        gif_placeholder.image("https://media.giphy.com/media/1EgvBRIi806wnOQ4kG/giphy.gif")
+        
+        # Pause for 1.5 seconds so the user actually sees the GIF
+        time.sleep(1.5) 
+        
+        # Clear it out and remember that we processed this file
+        gif_placeholder.empty()
+        st.session_state.processed_file_id = uploaded_file.file_id
+
     # Automatically get the filename without the ".txt"
     default_title = uploaded_file.name.rsplit(".", 1)[0]
 
