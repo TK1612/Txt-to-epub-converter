@@ -12,6 +12,7 @@ st.set_page_config(page_title="Novel to EPUB Converter", page_icon="📚", layou
 
 # --- ABOUT US LINK ---
 st.page_link("pages/about_us.py", label="About Us", icon="ℹ️")
+st.page_link("pages/chinese_converter.py", label="Chinese Converter (WIP)", icon="🇨🇳")
 
 st.title("📚 Novel to EPUB Converter")
 st.write("Upload your raw text, extract chapters, edit the Table of Contents, and generate your files.")
