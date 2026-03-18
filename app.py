@@ -46,6 +46,7 @@ with col2:
 if uploaded_file is not None:
     if st.button("3. Extract Chapters"):
         
+        # 1. Initialize the GIF placeholder
         gif_placeholder = st.empty()
         gif_placeholder.image("https://media.giphy.com/media/1EgvBRIi806wnOQ4kG/giphy.gif")
         
@@ -59,11 +60,14 @@ if uploaded_file is not None:
             st.session_state.found_numbers = found_numbers
             st.session_state.epub_file = None 
             st.session_state.html_zip = None
+
+            # Scanning Branch
+            missing_chapters = check_missing_chapters(st.session_state.found_numbers)
             
+        # 2. Clear the GIF only AFTER everything above is done processing
         gif_placeholder.empty() 
 
-        # Scanning Branch
-        missing_chapters = check_missing_chapters(st.session_state.found_numbers)
+        # Display results of the scan
         if missing_chapters:
             st.error("Oops, it seems the regex was not enough, please dm @thanhdeptrai101 to report to the saint about this problem")
             st.warning(f"Missing chapters detected: {', '.join(map(str, missing_chapters))}")
@@ -90,6 +94,7 @@ if st.session_state.chapters_data:
 
     if st.button("4. Generate HTML & Build EPUB"):
         
+        # 1. Initialize the GIF placeholder
         gif_placeholder = st.empty()
         gif_placeholder.image("https://media.giphy.com/media/1EgvBRIi806wnOQ4kG/giphy.gif")
         
@@ -113,7 +118,9 @@ if st.session_state.chapters_data:
             )
             st.session_state.epub_file = epub_data
             
+        # 2. Clear the GIF when the files are built
         gif_placeholder.empty()
+        
         st.success("Files successfully built! You can download the raw HTMLs for Sigil, or the complete EPUB.")
 
 # --- STEP 3: DOWNLOADS ---
@@ -137,4 +144,3 @@ if st.session_state.html_zip or st.session_state.epub_file:
                 file_name=f"{book_title}.epub",
                 mime="application/epub+zip"
             )
-
