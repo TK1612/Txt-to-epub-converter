@@ -28,7 +28,7 @@ if "found_numbers" not in st.session_state:
 # --- UI: FILE UPLOAD & METADATA ---
 uploaded_file = st.file_uploader("1. Upload raw .txt file", type=["txt"])
 
-default_title = "My Awesome Novel"
+default_title = "Raw KR name"
 if uploaded_file is not None:
     # Automatically get the filename without the ".txt"
     default_title = uploaded_file.name.rsplit(".", 1)[0]
