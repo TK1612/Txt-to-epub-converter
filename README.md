@@ -1,5 +1,5 @@
-The project was created bullshitly by the hate on viery on a nice day
-to explain, three things it does
+The project was created bullshitly by the hate on viery on a nice day.
+To explain, three things it does
 1. split by chapter number for korean
 2. convert into html
 3. put that into epub (i learned from sigil)
