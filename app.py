@@ -7,9 +7,16 @@ from ebooklib import epub
 st.set_page_config(page_title="Novel to EPUB Converter", page_icon="📚", layout="centered")
 
 st.title("📚 Novel to EPUB Converter")
-st.write("Upload your raw text, set your metadata, and generate a fully formatted EPUB.")
+st.write("Upload your raw text, extract chapters, edit the Table of Contents, and generate your EPUB.")
 
-# --- REGEX PATTERNS (Python 3 Compatible) ---
+# --- INITIALIZE SESSION STATE ---
+# This allows the app to remember data between button clicks
+if "chapters_data" not in st.session_state:
+    st.session_state.chapters_data = []
+if "epub_file" not in st.session_state:
+    st.session_state.epub_file = None
+
+# --- REGEX PATTERNS ---
 primary_pattern = re.compile(
     r"^(?:.*?(\d+)화\s*)?(외전)\s*([\d\-]+)(?=\s|$|\W|[화편부상중하])|"
     r"^[^\w\s]*(\d+)화.*\((\d+)\)(?=\s|$|\W)|"
@@ -37,133 +44,155 @@ with col2:
     book_language = st.text_input("Language Code", value="ko")
     cover_image = st.file_uploader("Upload Cover Image (Optional)", type=["jpg", "jpeg", "png"])
 
-# --- CORE LOGIC ---
-if uploaded_file is not None and st.button("3. Process and Build EPUB"):
-    with st.spinner("Processing text and building EPUB..."):
-        
-        # Read the uploaded file
-        text = uploaded_file.getvalue().decode("utf-8")
-        lines = text.splitlines()
-        
-        chapters_data = []
-        current_chapter_lines = []
-        current_title = "Start"
-        
-        last_main_chapter = 0
-        current_active_chapter_num = -1
-        lines_since_last_split = 9999
-        extracted_prologue = False
-
-        # --- STEP 1: SPLIT TEXT ---
-        for line in lines:
-            clean_line = line.strip()
-            lines_since_last_split += 1
-            is_new_chapter = False
-            val_to_check = -1
+# --- STEP 1: EXTRACT CHAPTERS ---
+if uploaded_file is not None:
+    if st.button("3. Extract Chapters"):
+        with st.spinner("Scanning document and identifying chapters..."):
+            text = uploaded_file.getvalue().decode("utf-8")
+            lines = text.splitlines()
             
-            primary_match = primary_pattern.match(clean_line)
+            chapters_data = []
+            current_chapter_lines = []
+            current_title = "Start"
             
-            if primary_match:
-                if primary_match.group(2) == '외전': 
-                    val_to_check = int(primary_match.group(1)) if primary_match.group(1) else last_main_chapter
-                    is_new_chapter = True
-                elif primary_match.group(4) or primary_match.group(6) or primary_match.group(7): 
-                    val_to_check = int(primary_match.group(4) or primary_match.group(6) or primary_match.group(7))
-                    is_new_chapter = True
-                elif primary_match.group(8) == '프롤로그' and not extracted_prologue and last_main_chapter == 0:
-                    val_to_check = 0
-                    is_new_chapter = True
-                    extracted_prologue = True
-            else:
-                fallback_match = fallback_pattern.match(clean_line)
-                if fallback_match:
-                    matched_num = int(fallback_match.group(1) or fallback_match.group(3))
-                    is_sequential = (last_main_chapter == 0) or (matched_num > last_main_chapter and (matched_num - last_main_chapter) <= 5)
-                    if is_sequential and not (clean_line.endswith(".") or clean_line.endswith("?") or clean_line.endswith("!")) and len(clean_line) <= 50:
-                        val_to_check = matched_num
-                        is_new_chapter = True
+            last_main_chapter = 0
+            current_active_chapter_num = -1
+            lines_since_last_split = 9999
+            extracted_prologue = False
 
-            # Anti-duplicate check (within 20 lines)
-            if is_new_chapter:
-                if val_to_check == current_active_chapter_num and lines_since_last_split < 20:
-                    is_new_chapter = False
-                else:
-                    current_active_chapter_num = val_to_check
-                    last_main_chapter = val_to_check
-
-            # Start new chapter block
-            if is_new_chapter:
-                if current_chapter_lines:
-                    chapters_data.append({"title": current_title, "lines": current_chapter_lines})
-                current_title = clean_line 
-                current_chapter_lines = [clean_line]
-                lines_since_last_split = 0
-            else:
-                current_chapter_lines.append(clean_line)
-
-        # Save the final chapter
-        if current_chapter_lines:
-            chapters_data.append({"title": current_title, "lines": current_chapter_lines})
-
-        # --- STEP 2: BUILD EPUB ---
-        book = epub.EpubBook()
-        book.set_identifier("id123456")
-        book.set_title(book_title)
-        book.set_language(book_language)
-        book.add_author(book_author)
-
-        if cover_image:
-            book.set_cover("cover.jpg", cover_image.getvalue())
-
-        epub_chapters = []
-        
-        for i, ch_data in enumerate(chapters_data):
-            file_name = f"chapter_{i}.xhtml"
-            chapter = epub.EpubHtml(title=ch_data["title"], file_name=file_name, lang=book_language)
-            
-            # HTML Formatting Logic
-            html_content = ["<html><head></head><body>"]
-            has_h1 = False
-            
-            for line in ch_data["lines"]:
-                # Escape HTML special characters
-                line_safe = line.replace("<", "&lt;").replace(">", "&gt;")
+            for line in lines:
+                clean_line = line.strip()
+                lines_since_last_split += 1
+                is_new_chapter = False
+                val_to_check = -1
                 
-                if not line_safe:
-                    html_content.append("<p>&nbsp;</p>")
-                elif not has_h1 and len(line_safe) < 60:
-                    html_content.append(f"<h1>{line_safe}</h1>")
-                    has_h1 = True
+                primary_match = primary_pattern.match(clean_line)
+                
+                if primary_match:
+                    if primary_match.group(2) == '외전': 
+                        val_to_check = int(primary_match.group(1)) if primary_match.group(1) else last_main_chapter
+                        is_new_chapter = True
+                    elif primary_match.group(4) or primary_match.group(6) or primary_match.group(7): 
+                        val_to_check = int(primary_match.group(4) or primary_match.group(6) or primary_match.group(7))
+                        is_new_chapter = True
+                    elif primary_match.group(8) == '프롤로그' and not extracted_prologue and last_main_chapter == 0:
+                        val_to_check = 0
+                        is_new_chapter = True
+                        extracted_prologue = True
                 else:
-                    html_content.append(f"<p>{line_safe}</p>")
-                    
-            html_content.append("</body></html>")
-            chapter.content = "\n".join(html_content)
+                    fallback_match = fallback_pattern.match(clean_line)
+                    if fallback_match:
+                        matched_num = int(fallback_match.group(1) or fallback_match.group(3))
+                        is_sequential = (last_main_chapter == 0) or (matched_num > last_main_chapter and (matched_num - last_main_chapter) <= 5)
+                        if is_sequential and not (clean_line.endswith(".") or clean_line.endswith("?") or clean_line.endswith("!")) and len(clean_line) <= 50:
+                            val_to_check = matched_num
+                            is_new_chapter = True
+
+                if is_new_chapter:
+                    if val_to_check == current_active_chapter_num and lines_since_last_split < 20:
+                        is_new_chapter = False
+                    else:
+                        current_active_chapter_num = val_to_check
+                        last_main_chapter = val_to_check
+
+                if is_new_chapter:
+                    if current_chapter_lines:
+                        chapters_data.append({"title": current_title, "lines": current_chapter_lines})
+                    current_title = clean_line 
+                    current_chapter_lines = [clean_line]
+                    lines_since_last_split = 0
+                else:
+                    current_chapter_lines.append(clean_line)
+
+            if current_chapter_lines:
+                chapters_data.append({"title": current_title, "lines": current_chapter_lines})
+
+            # Save the extracted data into session state
+            st.session_state.chapters_data = chapters_data
+            # Clear any previously built EPUB so the user has to rebuild with new edits
+            st.session_state.epub_file = None 
+
+# --- STEP 2: EDIT TOC & BUILD EPUB ---
+if st.session_state.chapters_data:
+    st.markdown("---")
+    st.subheader("3. Edit Table of Contents")
+    st.info("You can rename the chapters below. The changes will be reflected in both the Table of Contents and the Chapter Headings (<h1> tags) inside the book.")
+    
+    # Prepare data for the data editor
+    toc_list = [{"Chapter": i, "Title": ch["title"]} for i, ch in enumerate(st.session_state.chapters_data)]
+    
+    # Display the interactive editor
+    edited_toc = st.data_editor(
+        toc_list,
+        column_config={
+            "Chapter": st.column_config.NumberColumn("Original Index", disabled=True),
+            "Title": st.column_config.TextColumn("Chapter Title (Edit me!)")
+        },
+        hide_index=True,
+        use_container_width=True
+    )
+
+    if st.button("4. Build EPUB with Edited TOC"):
+        with st.spinner("Formatting HTML and packaging EPUB..."):
             
-            book.add_item(chapter)
-            epub_chapters.append(chapter)
+            book = epub.EpubBook()
+            book.set_identifier("id123456")
+            book.set_title(book_title)
+            book.set_language(book_language)
+            book.add_author(book_author)
 
-        # Build Table of Contents and Spine
-        book.toc = tuple(epub_chapters)
-        book.add_item(epub.EpubNcx())
-        book.add_item(epub.EpubNav())
-        
-        spine = ['nav'] + epub_chapters
-        book.spine = spine
+            if cover_image:
+                book.set_cover("cover.jpg", cover_image.getvalue())
 
-        # Write to memory
-        epub_io = io.BytesIO()
-        epub.write_epub(epub_io, book)
-        
-        st.success(f"Successfully processed {len(epub_chapters)} chapters!")
-        
-        # Download Button
-        st.download_button(
-            label="⬇️ Download EPUB",
-            data=epub_io.getvalue(),
-            file_name=f"{book_title}.epub",
-            mime="application/epub+zip"
-        )
+            epub_chapters = []
+            
+            for i, row in enumerate(edited_toc):
+                # Use the newly edited title
+                final_title = row["Title"]
+                original_lines = st.session_state.chapters_data[i]["lines"]
+                
+                file_name = f"chapter_{i}.xhtml"
+                chapter = epub.EpubHtml(title=final_title, file_name=file_name, lang=book_language)
+                
+                html_content = ["<html><head></head><body>"]
+                
+                # Force the edited title as the <h1> tag
+                html_content.append(f"<h1>{final_title.replace('<', '&lt;').replace('>', '&gt;')}</h1>")
+                
+                # Append the rest of the lines as <p> tags, skipping index 0 (the old title)
+                for line in original_lines[1:]:
+                    line_safe = line.replace("<", "&lt;").replace(">", "&gt;")
+                    if not line_safe:
+                        html_content.append("<p>&nbsp;</p>")
+                    else:
+                        html_content.append(f"<p>{line_safe}</p>")
+                        
+                html_content.append("</body></html>")
+                chapter.content = "\n".join(html_content)
+                
+                book.add_item(chapter)
+                epub_chapters.append(chapter)
+
+            book.toc = tuple(epub_chapters)
+            book.add_item(epub.EpubNcx())
+            book.add_item(epub.EpubNav())
+            book.spine = ['nav'] + epub_chapters
+
+            epub_io = io.BytesIO()
+            epub.write_epub(epub_io, book)
+            
+            # Save the binary EPUB data to session state
+            st.session_state.epub_file = epub_io.getvalue()
+            st.success("EPUB successfully built! Click below to download.")
+
+# --- STEP 3: DOWNLOAD ---
+if st.session_state.epub_file:
+    st.download_button(
+        label="⬇️ Download Edited EPUB",
+        data=st.session_state.epub_file,
+        file_name=f"{book_title}.epub",
+        mime="application/epub+zip"
+    )
 
 # --- FOOTER ---
 st.markdown("---")
