@@ -138,10 +138,3 @@ if st.session_state.html_zip or st.session_state.epub_file:
                 mime="application/epub+zip"
             )
 
-# --- FOOTER ---
-st.markdown("---")
-st.markdown("""
-### About the Developer
-This was created to shit on Viery, as he dares to request 800 chapters, so i'm creating this to avoid doing his requests.
-Any bug problems u can send a dm through @truongkoolvg4 (i'm not gonna reply to it mueheheheheh)
-""")
