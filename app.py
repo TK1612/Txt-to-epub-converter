@@ -3,8 +3,8 @@ import zipfile
 import io
 from modules.splitter import extract_chapters
 from modules.scanner import check_missing_chapters
-from modules.html_maker import generate_html_files
-from modules.epub_maker import create_epub
+from modules.html_converter import generate_html_files
+from modules.epub_builder import create_epub
 
 # --- PAGE SETUP ---
 st.set_page_config(page_title="Novel to EPUB Converter", page_icon="📚", layout="centered")
@@ -30,6 +30,7 @@ uploaded_file = st.file_uploader("1. Upload raw .txt file", type=["txt"])
 
 default_title = "My Awesome Novel"
 if uploaded_file is not None:
+    # Automatically get the filename without the ".txt"
     default_title = uploaded_file.name.rsplit(".", 1)[0]
 
 st.subheader("2. Book Metadata & Cover")
@@ -94,7 +95,7 @@ if st.session_state.chapters_data:
         
         with st.spinner("Formatting HTML and packaging files..."):
             
-            # HTML Maker Branch
+            # HTML Converter Branch
             html_dict = generate_html_files(edited_toc, st.session_state.chapters_data)
             
             # Create a ZIP of the HTML files for Sigil
@@ -104,7 +105,7 @@ if st.session_state.chapters_data:
                     zip_file.writestr(file_name, html_content.encode('utf-8'))
             st.session_state.html_zip = zip_buffer.getvalue()
 
-            # EPUB Maker Branch
+            # EPUB Builder Branch
             cover_bytes = cover_image.getvalue() if cover_image else None
             epub_data = create_epub(
                 book_title, book_author, book_language, cover_bytes, 
