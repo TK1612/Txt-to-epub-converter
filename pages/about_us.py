@@ -13,7 +13,7 @@ Hb: for being balls
 Bobo: for being dumb
 Nekoldun: for translating ts
 Vlya: for being emotional support
-    """)
+Tyuyu    """)
 
 if st.button("ℹ️ About Us"):
     show_about_us()
@@ -30,4 +30,5 @@ Hb: for being balls
 Bobo: for being dumb
 Nekoldun: for translating ts
 Vlya: for being emotional support
+Tyuyuyuyuyuy
 """)
