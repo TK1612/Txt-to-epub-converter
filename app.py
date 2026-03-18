@@ -11,8 +11,8 @@ from modules.epub_builder import create_epub
 st.set_page_config(page_title="Novel to EPUB Converter", page_icon="📚", layout="centered")
 
 # --- ABOUT US LINK ---
-st.page_link("pages/chinese_converter.py", label="Chinese Converter (WIP)", icon="🇨🇳")
-st.page_link("pages/about_us.py", label="About Us", icon="ℹ️")
+st.page_link("pages/1_chinese_converter.py", label="Chinese Converter (WIP)", icon="🇨🇳")
+st.page_link("pages/2_about_us.py", label="About Us", icon="ℹ️")
 
 st.title("📚 Novel to EPUB Converter")
 st.write("Upload your raw text, extract chapters, edit the Table of Contents, and generate your files.")
