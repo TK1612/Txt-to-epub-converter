@@ -13,12 +13,40 @@ from modules.epub_builder import create_epub
 st.set_page_config(page_title="Novel to EPUB Converter", page_icon="📚", layout="centered")
 
 # --- ADD CHARACTER TO CORNER ---
-def add_character_to_corner(image_path):
-    # Check if the file actually exists before trying to open it
+def add_character_to_corner(image_filename):
+    # Get the exact folder where app.py lives
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    image_path = os.path.join(current_dir, image_filename)
+    
     if os.path.exists(image_path):
         # Read and encode the image to base64
         with open(image_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
+        
+        # Inject custom CSS to the root app container
+        st.markdown(
+            f"""
+            <style>
+                .stApp::after {{
+                    content: "";
+                    position: fixed;
+                    bottom: 0px; 
+                    left: 0px;   
+                    width: 300px;  /* Change width here */
+                    height: 300px; /* Change height here */
+                    background-image: url('data:image/png;base64,{encoded_string}');
+                    background-size: contain;
+                    background-repeat: no-repeat;
+                    background-position: bottom left;
+                    z-index: 999999; /* Forces it over everything */
+                    pointer-events: none; /* Allows clicking through it */
+                }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.error(f"Debug: Could not find the image at {image_path}")
         
         # Inject custom CSS and the image HTML
         st.markdown(
