@@ -14,5 +14,5 @@ Hb: for being balls
 Bobo: for being dumb
 Nekoldun: for translating ts
 Vlya: for being emotional support
-===============================================
+
 """)
