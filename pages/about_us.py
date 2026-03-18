@@ -10,7 +10,7 @@ st.image("https://media.giphy.com/media/1EgvBRIi806wnOQ4kG/giphy.gif")
 @st.dialog("About Us")
 def show_about_us():
     st.write("This was created to shit on Viery, as he dares to request 800 chapters, so i'm creating this to avoid doing his requests.")
-    st.write("Any bug problems u can send a dm though @thanhdeptrai101 (i'm not gonna reply to it mueheheheheh)")
+    st.write("Any bug problems u can send a dm through @thanhdeptrai101 (i'm not gonna reply to it mueheheheheh)")
     
     st.markdown("""
     **Thanks to our contributors:**
