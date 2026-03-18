@@ -24,5 +24,5 @@ def show_about_us():
     """)
 
 # --- BUTTON TO TRIGGER DIALOG ---
-if st.button("ℹ️ Click to read About Us"):
+if st.button("ℹ️ About Us"):
     show_about_us()
