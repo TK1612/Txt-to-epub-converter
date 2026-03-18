@@ -1,7 +1,7 @@
 import io
 from ebooklib import epub
 
-def create_epub(book_title, book_author, book_language, cover_bytes, edited_toc, chapters_data):
+def create_epub(book_title, book_author, book_language, cover_bytes, html_files_dict, edited_toc):
     book = epub.EpubBook()
     book.set_identifier("id123456")
     book.set_title(book_title)
@@ -13,25 +13,15 @@ def create_epub(book_title, book_author, book_language, cover_bytes, edited_toc,
 
     epub_chapters = []
     
-    for i, row in enumerate(edited_toc):
-        final_title = row["Title"]
-        original_lines = chapters_data[i]["lines"]
+    for i, (file_name, html_string) in enumerate(html_files_dict.items()):
+        # Pull the title from the TOC to label the chapter in the EPUB navigation
+        final_title = edited_toc[i]["Title"]
         
-        file_name = f"chapter_{i}.xhtml"
-        chapter = epub.EpubHtml(title=final_title, file_name=file_name, lang=book_language)
+        # EbookLib prefers .xhtml extensions internally
+        internal_file_name = file_name.replace(".html", ".xhtml")
         
-        html_content = ["<html><head></head><body>"]
-        html_content.append(f"<h1>{final_title.replace('<', '&lt;').replace('>', '&gt;')}</h1>")
-        
-        for line in original_lines[1:]:
-            line_safe = line.replace("<", "&lt;").replace(">", "&gt;")
-            if not line_safe:
-                html_content.append("<p>&nbsp;</p>")
-            else:
-                html_content.append(f"<p>{line_safe}</p>")
-                
-        html_content.append("</body></html>")
-        chapter.content = "\n".join(html_content)
+        chapter = epub.EpubHtml(title=final_title, file_name=internal_file_name, lang=book_language)
+        chapter.content = html_string
         
         book.add_item(chapter)
         epub_chapters.append(chapter)
