@@ -2,6 +2,8 @@ import streamlit as st
 import zipfile
 import io
 import time
+import base64
+import os
 from modules.splitter import extract_chapters
 from modules.scanner import check_missing_chapters
 from modules.html_converter import generate_html_files
@@ -9,6 +11,35 @@ from modules.epub_builder import create_epub
 
 # --- PAGE SETUP ---
 st.set_page_config(page_title="Novel to EPUB Converter", page_icon="📚", layout="centered")
+
+# --- ADD CHARACTER TO CORNER ---
+def add_character_to_corner(image_path):
+    # Check if the file actually exists before trying to open it
+    if os.path.exists(image_path):
+        # Read and encode the image to base64
+        with open(image_path, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+        
+        # Inject custom CSS and the image HTML
+        st.markdown(
+            f"""
+            <style>
+                .bottom-left-character {{
+                    position: fixed;
+                    bottom: 0px;  /* Flushes image to the bottom */
+                    left: 0px;    /* Flushes image to the left */
+                    width: 250px; /* Adjust the size of the character here */
+                    z-index: 9999; /* Keeps it on top of the UI */
+                    pointer-events: none; /* Prevents the image from blocking clicks */
+                }}
+            </style>
+            <img src="data:image/png;base64,{encoded_string}" class="bottom-left-character">
+            """,
+            unsafe_allow_html=True
+        )
+
+# Call the function (make sure character.png is in the same folder as this script)
+add_character_to_corner("character.png")
 
 # --- ABOUT US LINK ---
 st.page_link("pages/about_us.py", label="About Us", icon="ℹ️")
