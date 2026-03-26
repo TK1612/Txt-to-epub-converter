@@ -1,8 +1,7 @@
-def generate_html_files(edited_toc, chapters_data):
-    """
-    Takes the edited TOC and chapter lines, returning a dictionary
-    where keys are filenames and values are the formatted HTML strings.
-    """
+# modules/html_converter.py
+import re
+
+def generate_html_files(edited_toc, chapters_data, search_pattern=None, replace_pattern=None):
     html_files = {}
     
     for i, row in enumerate(edited_toc):
@@ -18,10 +17,8 @@ def generate_html_files(edited_toc, chapters_data):
             "<body>"
         ]
         
-        # Force the edited title as the <h1> tag
         html_content.append(f"<h1>{final_title.replace('<', '&lt;').replace('>', '&gt;')}</h1>")
         
-        # Append the rest of the lines as <p> tags, skipping index 0 (the old title)
         for line in original_lines[1:]:
             line_safe = line.replace("<", "&lt;").replace(">", "&gt;")
             if not line_safe:
@@ -32,8 +29,15 @@ def generate_html_files(edited_toc, chapters_data):
         html_content.append("</body>")
         html_content.append("</html>")
         
-        # Pad numbers with zeros (e.g., chapter_0001.html) to keep them sorted in Sigil
+        html_str = "\n".join(html_content)
+        
+        if search_pattern and replace_pattern:
+            try:
+                html_str = re.sub(search_pattern, replace_pattern, html_str)
+            except Exception:
+                pass 
+        
         file_name = f"chapter_{i:04d}.html"
-        html_files[file_name] = "\n".join(html_content)
+        html_files[file_name] = html_str
         
     return html_files
