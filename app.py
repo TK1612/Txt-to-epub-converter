@@ -7,17 +7,14 @@ from modules.scanner import check_missing_chapters
 from modules.html_converter import generate_html_files
 from modules.epub_builder import create_epub
 
-# --- PAGE SETUP ---
 st.set_page_config(page_title="Novel to EPUB Converter", page_icon="📚", layout="centered")
 
-# --- ABOUT US LINK ---
 st.page_link("pages/1_chinese_converter.py", label="Chinese Converter (WIP)", icon="🇨🇳")
 st.page_link("pages/2_about_us.py", label="About Us", icon="ℹ️")
 
 st.title("📚 Novel to EPUB Converter")
 st.write("Upload your raw text, extract chapters, edit the Table of Contents, and generate your files.")
 
-# --- INITIALIZE SESSION STATE ---
 if "chapters_data" not in st.session_state:
     st.session_state.chapters_data = []
 if "epub_file" not in st.session_state:
@@ -29,27 +26,17 @@ if "found_numbers" not in st.session_state:
 if "processed_file_id" not in st.session_state:
     st.session_state.processed_file_id = None
 
-# --- UI: FILE UPLOAD & METADATA ---
 uploaded_file = st.file_uploader("1. Upload raw .txt file", type=["txt"])
 
 default_title = "Raw KR name"
 if uploaded_file is not None:
-    
-    # Check if this is a brand new file being dropped in
     if st.session_state.processed_file_id != uploaded_file.file_id:
-        
-        # Show the GIF
         gif_placeholder = st.empty()
         gif_placeholder.image("https://media.giphy.com/media/1EgvBRIi806wnOQ4kG/giphy.gif")
-        
-        # Pause for 1.5 seconds so the user actually sees the GIF
         time.sleep(1.5) 
-        
-        # Clear it out and remember that we processed this file
         gif_placeholder.empty()
         st.session_state.processed_file_id = uploaded_file.file_id
 
-    # Automatically get the filename without the ".txt"
     default_title = uploaded_file.name.rsplit(".", 1)[0]
 
 st.subheader("2. Book Metadata & Cover")
@@ -61,39 +48,30 @@ with col2:
     book_language = st.text_input("Language Code", value="ko")
     cover_image = st.file_uploader("Upload Cover Image (Optional)", type=["jpg", "jpeg", "png"])
 
-# --- STEP 1: EXTRACT CHAPTERS & SCAN ---
 if uploaded_file is not None:
     if st.button("3. Extract Chapters"):
-        
-        # 1. Initialize the GIF placeholder
         gif_placeholder = st.empty()
         gif_placeholder.image("https://media.giphy.com/media/1EgvBRIi806wnOQ4kG/giphy.gif")
         
         with st.spinner("Scanning document and identifying chapters..."):
             text = uploaded_file.getvalue().decode("utf-8")
             
-            # Splitting Branch
             chapters_data, found_numbers = extract_chapters(text)
-            
             st.session_state.chapters_data = chapters_data
             st.session_state.found_numbers = found_numbers
             st.session_state.epub_file = None 
             st.session_state.html_zip = None
 
-            # Scanning Branch
             missing_chapters = check_missing_chapters(st.session_state.found_numbers)
             
-        # 2. Clear the GIF only AFTER everything above is done processing
         gif_placeholder.empty() 
 
-        # Display results of the scan
         if missing_chapters:
             st.error("Oops, it seems the regex was not enough, please dm @thanhdeptrai101 to report to the saint about this problem")
             st.warning(f"Missing chapters detected: {', '.join(map(str, missing_chapters))}")
         else:
             st.success("Sequence is perfect! No missing chapters.")
 
-# --- STEP 2: EDIT TOC & BUILD FILES ---
 if st.session_state.chapters_data:
     st.markdown("---")
     st.subheader("3. Edit Table of Contents")
@@ -111,25 +89,67 @@ if st.session_state.chapters_data:
         use_container_width=True
     )
 
-    if st.button("4. Generate HTML & Build EPUB"):
+    st.markdown("---")
+    st.subheader("4. Advanced Regex Formatting & Preview")
+    
+    col_fmt1, col_fmt2 = st.columns(2)
+    with col_fmt1:
+        handle_blank_space = st.checkbox("Handle empty `<p>` tags (blank space before title)", value=True)
+    with col_fmt2:
+        use_custom_regex = st.checkbox("Use custom Regex for Titles")
+
+    if use_custom_regex:
+        search_pattern = st.text_input("Search Regex:", value=r"<title>[^<]*</title>\s*</head>\s*<body>\s*<h1>[^<]*</h1>\s*<p>(?:&nbsp;|\s*)</p>\s*<p>([^<]+)</p>")
+        replace_pattern = st.text_input("Replace Regex:", value=r"<title>\1</title>\n</head>\n<body>\n<h1>\1</h1>")
+    else:
+        if handle_blank_space:
+            search_pattern = r"<title>[^<]*</title>\s*</head>\s*<body>\s*<h1>[^<]*</h1>\s*<p>(?:&nbsp;|\s*)</p>\s*<p>([^<]+)</p>"
+        else:
+            search_pattern = r"<title>[^<]*</title>\s*</head>\s*<body>\s*<h1>[^<]*</h1>\s*<p>([^<]+)</p>"
+        replace_pattern = r"<title>\1</title>\n</head>\n<body>\n<h1>\1</h1>"
+
+    preview_file = st.checkbox("🔍 Show HTML Preview for a chapter")
+    if preview_file:
+        preview_idx = st.selectbox(
+            "Select chapter to preview:", 
+            options=range(len(edited_toc)), 
+            format_func=lambda x: edited_toc[x]["Title"]
+        )
         
-        # 1. Initialize the GIF placeholder
+        preview_dict = generate_html_files(
+            [edited_toc[preview_idx]], 
+            [st.session_state.chapters_data[preview_idx]], 
+            search_pattern, 
+            replace_pattern
+        )
+        preview_html = list(preview_dict.values())[0]
+        
+        tab1, tab2 = st.tabs(["Rendered Visual Preview", "Raw HTML Code"])
+        with tab1:
+            st.components.v1.html(preview_html, height=400, scrolling=True)
+        with tab2:
+            st.code(preview_html, language="html")
+
+    st.markdown("---")
+    if st.button("5. Generate HTML & Build EPUB"):
         gif_placeholder = st.empty()
         gif_placeholder.image("https://media.giphy.com/media/1EgvBRIi806wnOQ4kG/giphy.gif")
         
         with st.spinner("Formatting HTML and packaging files..."):
             
-            # HTML Converter Branch
-            html_dict = generate_html_files(edited_toc, st.session_state.chapters_data)
+            html_dict = generate_html_files(
+                edited_toc, 
+                st.session_state.chapters_data, 
+                search_pattern, 
+                replace_pattern
+            )
             
-            # Create a ZIP of the HTML files for Sigil
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                 for file_name, html_content in html_dict.items():
                     zip_file.writestr(file_name, html_content.encode('utf-8'))
             st.session_state.html_zip = zip_buffer.getvalue()
 
-            # EPUB Builder Branch
             cover_bytes = cover_image.getvalue() if cover_image else None
             epub_data = create_epub(
                 book_title, book_author, book_language, cover_bytes, 
@@ -137,12 +157,9 @@ if st.session_state.chapters_data:
             )
             st.session_state.epub_file = epub_data
             
-        # 2. Clear the GIF when the files are built
         gif_placeholder.empty()
-        
         st.success("Files successfully built! You can download the raw HTMLs for Sigil, or the complete EPUB.")
 
-# --- STEP 3: DOWNLOADS ---
 if st.session_state.html_zip or st.session_state.epub_file:
     col1, col2 = st.columns(2)
     
