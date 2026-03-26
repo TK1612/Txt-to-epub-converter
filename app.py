@@ -164,7 +164,7 @@ if st.session_state.chapters_data:
     st.markdown("---")
     st.subheader("5. Build Final EPUB")
     
-    apply_regex_final = st.checkbox("Apply the selected Regex formatting to all chapters during build?", value=(st.session_state.preview_mode == "regex"))
+    apply_regex_final = st.checkbox("Apply the selected Regex formatting to all chapters during build?", value=False)
 
     if st.button("Generate HTML & Build EPUB"):
         gif_placeholder = st.empty()
