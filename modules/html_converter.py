@@ -1,4 +1,3 @@
-# modules/html_converter.py
 import re
 
 def generate_html_files(edited_toc, chapters_data, search_pattern=None, replace_pattern=None):
@@ -22,6 +21,7 @@ def generate_html_files(edited_toc, chapters_data, search_pattern=None, replace_
         for line in original_lines[1:]:
             line_safe = line.replace("<", "&lt;").replace(">", "&gt;")
             if not line_safe:
+                # Matches the empty space format from your screenshot
                 html_content.append("<p>&nbsp;</p>")
             else:
                 html_content.append(f"<p>{line_safe}</p>")
@@ -31,6 +31,7 @@ def generate_html_files(edited_toc, chapters_data, search_pattern=None, replace_
         
         html_str = "\n".join(html_content)
         
+        # Apply Regex if requested
         if search_pattern and replace_pattern:
             try:
                 html_str = re.sub(search_pattern, replace_pattern, html_str)
