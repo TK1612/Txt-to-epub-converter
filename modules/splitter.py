@@ -10,6 +10,9 @@ primary_pattern = re.compile(
 )
 
 fallback_pattern = re.compile(
+    # New criteria: "제357화" or "2부 23화."
+    # Group 1 = 부(Part) number, Group 2 = 화(Chapter) number
+    r"^[^\w\s]*(?:제\s*)?(?:(\d+)\s*부\s*)?(\d+)\s*화|" 
     r"^[^\w\s]*(\d+)\.\s+.*\((\d+)\)|"
     r"^[^\w\s]*(\d+)\.\s+",
     re.UNICODE
@@ -50,11 +53,22 @@ def extract_chapters(text):
         else:
             fallback_match = fallback_pattern.match(clean_line)
             if fallback_match:
-                matched_num = int(fallback_match.group(1) or fallback_match.group(3))
-                is_sequential = (last_main_chapter == 0) or (matched_num > last_main_chapter and (matched_num - last_main_chapter) <= 5)
-                if is_sequential and not (clean_line.endswith(".") or clean_line.endswith("?") or clean_line.endswith("!")) and len(clean_line) <= 50:
-                    val_to_check = matched_num
-                    is_new_chapter = True
+                # If it matches the new "제357화" or "2부 23화." pattern
+                if fallback_match.group(2):
+                    matched_num = int(fallback_match.group(2))
+                    is_sequential = (last_main_chapter == 0) or (matched_num > last_main_chapter and (matched_num - last_main_chapter) <= 5)
+                    # We skip the punctuation restriction here because titles like "2부 23화." end with a period
+                    if is_sequential and len(clean_line) <= 50:
+                        val_to_check = matched_num
+                        is_new_chapter = True
+                        
+                # If it matches the original numbered fallback pattern
+                else:
+                    matched_num = int(fallback_match.group(3) or fallback_match.group(5))
+                    is_sequential = (last_main_chapter == 0) or (matched_num > last_main_chapter and (matched_num - last_main_chapter) <= 5)
+                    if is_sequential and not (clean_line.endswith(".") or clean_line.endswith("?") or clean_line.endswith("!")) and len(clean_line) <= 50:
+                        val_to_check = matched_num
+                        is_new_chapter = True
 
         if is_new_chapter:
             if val_to_check == current_active_chapter_num and lines_since_last_split < 20:
