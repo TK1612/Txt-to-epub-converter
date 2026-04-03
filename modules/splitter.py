@@ -29,7 +29,8 @@ def extract_chapters(text):
     lines_since_last_split = 9999
     extracted_prologue = False
     
-    found_numbers = set()
+    # Kept as a list to maintain extraction order for the consistency scanner
+    found_numbers = []
 
     for line in lines:
         clean_line = line.strip()
@@ -77,7 +78,7 @@ def extract_chapters(text):
                 current_active_chapter_num = val_to_check
                 last_main_chapter = val_to_check
                 if val_to_check >= 0:
-                    found_numbers.add(val_to_check)
+                    found_numbers.append(val_to_check)
 
         if is_new_chapter:
             if current_chapter_lines:
