@@ -3,7 +3,7 @@ import zipfile
 import io
 import time
 from modules.splitter import extract_chapters
-from modules.scanner import check_missing_chapters
+from modules.scanner import check_missing_chapters, check_inconsistencies
 from modules.html_converter import generate_html_files
 from modules.epub_builder import create_epub
 
@@ -24,7 +24,7 @@ if "epub_file" not in st.session_state:
 if "html_zip" not in st.session_state:
     st.session_state.html_zip = None
 if "found_numbers" not in st.session_state:
-    st.session_state.found_numbers = set()
+    st.session_state.found_numbers = []
 if "processed_file_id" not in st.session_state:
     st.session_state.processed_file_id = None
 if "preview_mode" not in st.session_state:
@@ -55,6 +55,8 @@ with col2:
 
 # --- STEP 1: EXTRACT CHAPTERS & SCAN ---
 if uploaded_file is not None:
+    check_consistency = st.checkbox("Check chapter consistencies (detect out-of-order spikes like 11 -> 32 -> 12)", value=True)
+
     if st.button("3. Extract Chapters"):
         gif_placeholder = st.empty()
         gif_placeholder.image("https://media.giphy.com/media/1EgvBRIi806wnOQ4kG/giphy.gif")
@@ -70,13 +72,25 @@ if uploaded_file is not None:
 
             missing_chapters = check_missing_chapters(st.session_state.found_numbers)
             
+            if check_consistency:
+                inconsistencies = check_inconsistencies(st.session_state.found_numbers)
+            else:
+                inconsistencies = []
+            
         gif_placeholder.empty() 
 
+        # Display Missing Chapters
         if missing_chapters:
             st.error("Oops, it seems the regex was not enough, please dm @thanhdeptrai101 to report to the saint about this problem")
             st.warning(f"Missing chapters detected: {', '.join(map(str, missing_chapters))}")
         else:
             st.success("Sequence is perfect! No missing chapters.")
+            
+        # Display Inconsistencies
+        if inconsistencies:
+            st.error("⚠️ Chapter Consistency Anomalies Detected:")
+            for anomaly in inconsistencies:
+                st.write(f"- {anomaly}")
 
 # --- STEP 2: EDIT TOC & PREVIEW ---
 if st.session_state.chapters_data:
@@ -115,7 +129,6 @@ if st.session_state.chapters_data:
             search_pattern = r"<title>[^<]*</title>\s*</head>\s*<body>\s*<h1>[^<]*</h1>\s*<p>([^<]+)</p>"
         replace_pattern = r"<title>\1</title>\n</head>\n<body>\n<h1>\1</h1>"
 
-    # 1. ADDED CHECKBOX BACK FOR PREVIEW
     preview_file = st.checkbox("🔍 Show HTML Preview for a chapter")
     if preview_file:
         st.write("#### Chapter Preview Actions")
@@ -154,7 +167,6 @@ if st.session_state.chapters_data:
         with tab1:
             st.code(preview_html, language="html")
         with tab2:
-            # 2. FIXED THE VISUAL PREVIEW MODE (Force white background, black text)
             styled_preview_html = preview_html.replace(
                 "<head>", 
                 "<head>\n<style>body { background-color: #ffffff; color: #000000; padding: 1.5rem; font-family: sans-serif; }</style>"
@@ -199,7 +211,6 @@ if st.session_state.chapters_data:
         st.success("Files successfully built! Please download them below.")
 
 # --- STEP 3: DOWNLOADS ---
-# 3. RESTORED EXACT DOWNLOAD CODE
 if st.session_state.html_zip or st.session_state.epub_file:
     st.markdown("---")
     col1, col2 = st.columns(2)
