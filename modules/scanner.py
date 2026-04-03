@@ -12,3 +12,4 @@ def check_missing_chapters(found_numbers):
             missing_numbers.append(i)
             
     return missing_numbers
+
