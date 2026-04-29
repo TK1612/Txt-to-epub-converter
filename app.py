@@ -64,21 +64,20 @@ if uploaded_file is not None:
         with st.spinner("Scanning document and identifying chapters..."):
             raw_bytes = uploaded_file.getvalue()
             
-            # Attempt robust decoding with fallbacks
-            try:
-                # utf-8-sig safely handles files with or without a Byte Order Mark (BOM)
-                text = raw_bytes.decode("utf-8-sig")
-            except UnicodeDecodeError:
+            # A clean loop to test multiple regional encodings
+            encodings_to_try = ["utf-8-sig", "cp949", "euc-kr", "gbk"]
+            text = None
+            
+            for encoding in encodings_to_try:
                 try:
-                    # Fallback 1: Common Korean encoding
-                    text = raw_bytes.decode("cp949")
+                    text = raw_bytes.decode(encoding)
+                    break  # Stop looping as soon as one succeeds
                 except UnicodeDecodeError:
-                    try:
-                        # Fallback 2: Common Chinese encoding
-                        text = raw_bytes.decode("gbk")
-                    except UnicodeDecodeError:
-                        # Final Fallback: Force decode and replace unknown characters to prevent a crash
-                        text = raw_bytes.decode("utf-8", errors="replace")
+                    continue
+            
+            # Final Fallback: Force decode and replace unknown characters to prevent a crash
+            if text is None:
+                text = raw_bytes.decode("utf-8", errors="replace")
             
             chapters_data, found_numbers = extract_chapters(text)
             st.session_state.chapters_data = chapters_data
