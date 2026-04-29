@@ -56,8 +56,10 @@ def extract_chapters(text):
     
     found_numbers = []
     
-    # Tracks if the CURRENT block being read was triggered by the 'vol :' pattern
+    # Tracking the active sequence format
     current_is_vol_format = False 
+    active_pattern_mode = None  # Will be 'primary', 'fallback', or 'vol'
+    VIABILITY_THRESHOLD = 500   # Lines until the locked pattern is deemed "not viable"
 
     for line in lines:
         clean_line = line.strip()
@@ -66,20 +68,46 @@ def extract_chapters(text):
         val_to_check = -1
         is_vol_chapter_trigger = False
         
-        primary_match = primary_pattern.match(clean_line)
-        
-        if primary_match:
-            if primary_match.group(2) == '외전': 
-                val_to_check = int(primary_match.group(1)) if primary_match.group(1) else last_main_chapter
-                is_new_chapter = True
-            elif primary_match.group(4) or primary_match.group(6) or primary_match.group(7): 
-                val_to_check = int(primary_match.group(4) or primary_match.group(6) or primary_match.group(7))
-                is_new_chapter = True
-            elif primary_match.group(8) == '프롤로그' and not extracted_prologue and last_main_chapter == 0:
-                val_to_check = 0
-                is_new_chapter = True
-                extracted_prologue = True
+        # Determine if our currently locked pattern is still viable
+        is_viable = (active_pattern_mode is not None) and (lines_since_last_split < VIABILITY_THRESHOLD)
+
+        # Decide which patterns we are ALLOWED to check based on the lock
+        check_primary = False
+        check_fallback = False
+        check_vol = False
+
+        if is_viable:
+            # STRICT LOCK: Only check the pattern family we are currently locked into
+            if active_pattern_mode == 'primary': check_primary = True
+            elif active_pattern_mode == 'fallback': check_fallback = True
+            elif active_pattern_mode == 'vol': check_vol = True
         else:
+            # UNLOCKED: The previous pattern is no longer viable (or we just started).
+            # We check all of them, strictly prioritizing the first pattern.
+            check_primary = True
+            check_fallback = True
+            check_vol = True
+
+        # 1. Test Primary Pattern (Highest Priority)
+        if check_primary:
+            primary_match = primary_pattern.match(clean_line)
+            if primary_match:
+                if primary_match.group(2) == '외전': 
+                    val_to_check = int(primary_match.group(1)) if primary_match.group(1) else last_main_chapter
+                    is_new_chapter = True
+                elif primary_match.group(4) or primary_match.group(6) or primary_match.group(7): 
+                    val_to_check = int(primary_match.group(4) or primary_match.group(6) or primary_match.group(7))
+                    is_new_chapter = True
+                elif primary_match.group(8) == '프롤로그' and not extracted_prologue and last_main_chapter == 0:
+                    val_to_check = 0
+                    is_new_chapter = True
+                    extracted_prologue = True
+                
+                if is_new_chapter:
+                    active_pattern_mode = 'primary' # Lock into primary
+
+        # 2. Test Fallback Pattern (Second Priority)
+        if not is_new_chapter and check_fallback:
             fallback_match = fallback_pattern.match(clean_line)
             if fallback_match:
                 if fallback_match.group(2):
@@ -94,14 +122,20 @@ def extract_chapters(text):
                     if is_sequential and not (clean_line.endswith(".") or clean_line.endswith("?") or clean_line.endswith("!")) and len(clean_line) <= 50:
                         val_to_check = matched_num
                         is_new_chapter = True
-            else:
-                # NEW: Check for the vol : pattern
-                vol_match = vol_pattern.match(clean_line)
-                if vol_match:
-                    is_new_chapter = True
-                    is_vol_chapter_trigger = True
-                    val_to_check = -999 # Sentinel value to prevent messing up the sequence scanner
+                
+                if is_new_chapter:
+                    active_pattern_mode = 'fallback' # Lock into fallback
 
+        # 3. Test Volume Pattern (Lowest Priority)
+        if not is_new_chapter and check_vol:
+            vol_match = vol_pattern.match(clean_line)
+            if vol_match:
+                is_new_chapter = True
+                is_vol_chapter_trigger = True
+                val_to_check = -999 
+                active_pattern_mode = 'vol' # Lock into vol
+
+        # --- Standard Validation and Appending Logic ---
         if is_new_chapter:
             if val_to_check == current_active_chapter_num and lines_since_last_split < 20:
                 is_new_chapter = False
