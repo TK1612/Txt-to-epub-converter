@@ -62,7 +62,23 @@ if uploaded_file is not None:
         gif_placeholder.image("https://media.giphy.com/media/1EgvBRIi806wnOQ4kG/giphy.gif")
         
         with st.spinner("Scanning document and identifying chapters..."):
-            text = uploaded_file.getvalue().decode("utf-8")
+            raw_bytes = uploaded_file.getvalue()
+            
+            # Attempt robust decoding with fallbacks
+            try:
+                # utf-8-sig safely handles files with or without a Byte Order Mark (BOM)
+                text = raw_bytes.decode("utf-8-sig")
+            except UnicodeDecodeError:
+                try:
+                    # Fallback 1: Common Korean encoding
+                    text = raw_bytes.decode("cp949")
+                except UnicodeDecodeError:
+                    try:
+                        # Fallback 2: Common Chinese encoding
+                        text = raw_bytes.decode("gbk")
+                    except UnicodeDecodeError:
+                        # Final Fallback: Force decode and replace unknown characters to prevent a crash
+                        text = raw_bytes.decode("utf-8", errors="replace")
             
             chapters_data, found_numbers = extract_chapters(text)
             st.session_state.chapters_data = chapters_data
