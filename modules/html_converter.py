@@ -10,10 +10,11 @@ def is_invisible(text):
 def generate_html_files(edited_toc, chapters_data, search_pattern=None, replace_pattern=None):
     html_files = {}
     
-    # Matches inner chapter titles: "262화.", "제 311 화", "2부 1화.", "2부 80화.", "프롤로그"
+    # Matches inner chapter titles: "262화.", "제 311 화", "2부 1화.", "2부 80화.", "프롤로그", "vol : 01"
     inner_title_pattern = re.compile(
         r"^\s*(?:제\s*)?(?:\d+\s*[부편]\s*)?\d+\s*화\.?\s*$|"
-        r"^\s*(?:프롤로그|에필로그|외전)\.?\s*$", 
+        r"^\s*(?:프롤로그|에필로그|외전)\.?\s*$|"
+        r"^[vV]ol\s*:.*", 
         re.IGNORECASE
     )
     
@@ -44,7 +45,7 @@ def generate_html_files(edited_toc, chapters_data, search_pattern=None, replace_
                     continue  # Skip leading grey blocks/empty spaces before the H1
                     
                 # We found the first visible line of the chapter text!
-                # Check if it matches our secondary chapter criteria (like "311화.")
+                # Check if it matches our secondary chapter criteria (like "311화." or "vol :")
                 if inner_title_pattern.match(line_safe.replace("&lt;", "<").replace("&gt;", ">")):
                     h1_text = line_safe  # Overwrite H1 with this secondary title
                 else:
