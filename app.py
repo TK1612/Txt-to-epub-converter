@@ -29,6 +29,8 @@ if "processed_file_id" not in st.session_state:
     st.session_state.processed_file_id = None
 if "preview_mode" not in st.session_state:
     st.session_state.preview_mode = "original"
+if "regex_rules" not in st.session_state:
+    st.session_state.regex_rules = []
 
 # --- UI: FILE UPLOAD & METADATA ---
 uploaded_file = st.file_uploader("1. Upload raw .txt file", type=["txt"])
@@ -64,18 +66,16 @@ if uploaded_file is not None:
         with st.spinner("Scanning document and identifying chapters..."):
             raw_bytes = uploaded_file.getvalue()
             
-            # A clean loop to test multiple regional encodings
             encodings_to_try = ["utf-8-sig", "cp949", "euc-kr", "gbk"]
             text = None
             
             for encoding in encodings_to_try:
                 try:
                     text = raw_bytes.decode(encoding)
-                    break  # Stop looping as soon as one succeeds
+                    break 
                 except UnicodeDecodeError:
                     continue
             
-            # Final Fallback: Force decode and replace unknown characters to prevent a crash
             if text is None:
                 text = raw_bytes.decode("utf-8", errors="replace")
             
@@ -94,14 +94,12 @@ if uploaded_file is not None:
             
         gif_placeholder.empty() 
 
-        # Display Missing Chapters
         if missing_chapters:
             st.error("Oops, it seems the regex was not enough, please dm @thanhdeptrai101 to report to the saint about this problem")
             st.warning(f"Missing chapters detected: {', '.join(map(str, missing_chapters))}")
         else:
             st.success("Sequence is perfect! No missing chapters.")
             
-        # Display Inconsistencies
         if inconsistencies:
             st.error("⚠️ Chapter Consistency Anomalies Detected:")
             for anomaly in inconsistencies:
@@ -132,11 +130,11 @@ if st.session_state.chapters_data:
     with col_fmt1:
         handle_blank_space = st.checkbox("Handle empty `<p>` tags (blank space before title)", value=False)
     with col_fmt2:
-        use_custom_regex = st.checkbox("Use custom Regex for Titles")
+        use_custom_regex = st.checkbox("Use Global Regex for Titles")
 
     if use_custom_regex:
-        search_pattern = st.text_input("Search Regex:", value=r"<title>[^<]*</title>\s*</head>\s*<body>\s*<h1>[^<]*</h1>\s*<p>(?:&nbsp;|\s*)</p>\s*<p>([^<]+)</p>")
-        replace_pattern = st.text_input("Replace Regex:", value=r"<title>\1</title>\n</head>\n<body>\n<h1>\1</h1>")
+        search_pattern = st.text_input("Global Search Regex:", value=r"<title>[^<]*</title>\s*</head>\s*<body>\s*<h1>[^<]*</h1>\s*<p>(?:&nbsp;|\s*)</p>\s*<p>([^<]+)</p>")
+        replace_pattern = st.text_input("Global Replace Regex:", value=r"<title>\1</title>\n</head>\n<body>\n<h1>\1</h1>")
     else:
         if handle_blank_space:
             search_pattern = r"<title>[^<]*</title>\s*</head>\s*<body>\s*<h1>[^<]*</h1>\s*<p>(?:&nbsp;|\s*)</p>\s*<p>([^<]+)</p>"
@@ -144,6 +142,35 @@ if st.session_state.chapters_data:
             search_pattern = r"<title>[^<]*</title>\s*</head>\s*<body>\s*<h1>[^<]*</h1>\s*<p>([^<]+)</p>"
         replace_pattern = r"<title>\1</title>\n</head>\n<body>\n<h1>\1</h1>"
 
+    # --- NEW: RANGED REGEX RULES UI ---
+    st.markdown("##### 🎯 Ranged Chapter Regex (Optional)")
+    use_ranged_regex = st.checkbox("Apply different regex patterns to specific chapter ranges")
+    
+    if use_ranged_regex:
+        if st.button("➕ Add Range Rule"):
+            st.session_state.regex_rules.append({
+                "start": 0, 
+                "end": len(edited_toc) - 1, 
+                "search": "", 
+                "replace": ""
+            })
+            st.rerun()
+            
+        for idx, rule in enumerate(st.session_state.regex_rules):
+            with st.container(border=True):
+                r_col1, r_col2, r_col3, r_col4, r_col5 = st.columns([1.5, 1.5, 4, 4, 1])
+                rule["start"] = r_col1.number_input("Start Index", min_value=0, max_value=len(edited_toc)-1, value=rule["start"], key=f"start_{idx}")
+                rule["end"] = r_col2.number_input("End Index", min_value=0, max_value=len(edited_toc)-1, value=rule["end"], key=f"end_{idx}")
+                rule["search"] = r_col3.text_input("Search", value=rule["search"], key=f"search_{idx}")
+                rule["replace"] = r_col4.text_input("Replace", value=rule["replace"], key=f"replace_{idx}")
+                
+                r_col5.write("")
+                r_col5.write("")
+                if r_col5.button("🗑️", key=f"del_{idx}"):
+                    st.session_state.regex_rules.pop(idx)
+                    st.rerun()
+
+    st.markdown("---")
     preview_file = st.checkbox("🔍 Show HTML Preview for a chapter")
     if preview_file:
         st.write("#### Chapter Preview Actions")
@@ -166,13 +193,16 @@ if st.session_state.chapters_data:
                 [edited_toc[preview_idx]], 
                 [st.session_state.chapters_data[preview_idx]], 
                 search_pattern, 
-                replace_pattern
+                replace_pattern,
+                regex_rules=st.session_state.regex_rules if use_ranged_regex else None,
+                start_index=preview_idx # Pass the actual index so range logic works during preview
             )
             st.success("✨ Showing preview WITH Regex applied.")
         else:
             preview_dict = generate_html_files(
                 [edited_toc[preview_idx]], 
-                [st.session_state.chapters_data[preview_idx]]
+                [st.session_state.chapters_data[preview_idx]],
+                start_index=preview_idx
             )
             st.info("👁️ Showing ORIGINAL HTML (No Regex applied).")
             
@@ -201,12 +231,14 @@ if st.session_state.chapters_data:
             
             sp = search_pattern if apply_regex_final else None
             rp = replace_pattern if apply_regex_final else None
+            rr = st.session_state.regex_rules if (apply_regex_final and use_ranged_regex) else None
             
             html_dict = generate_html_files(
                 edited_toc, 
                 st.session_state.chapters_data, 
                 sp, 
-                rp
+                rp,
+                regex_rules=rr
             )
             
             zip_buffer = io.BytesIO()
