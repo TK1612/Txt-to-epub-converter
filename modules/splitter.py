@@ -16,6 +16,12 @@ fallback_pattern = re.compile(
     re.UNICODE
 )
 
+# NEW: Title Fallback pattern for matching formats like "특성 쌓는 김전사 375화 외전 완결"
+title_fallback_pattern = re.compile(
+    r"^.*?(?:\s|^)(\d+)\s*화\s*(?:외전\s*)?(?:완결\s*)?$",
+    re.UNICODE
+)
+
 # Newest fallback pattern for Volume formatting
 vol_pattern = re.compile(r"^[vV]ol\s*:.*", re.UNICODE)
 
@@ -58,7 +64,7 @@ def extract_chapters(text):
     
     # Tracking the active sequence format
     current_is_vol_format = False 
-    active_pattern_mode = None  # Will be 'primary', 'fallback', or 'vol'
+    active_pattern_mode = None  # Will be 'primary', 'fallback', 'title_fallback', or 'vol'
     VIABILITY_THRESHOLD = 500   # Lines until the locked pattern is deemed "not viable"
 
     for line in lines:
@@ -74,18 +80,21 @@ def extract_chapters(text):
         # Decide which patterns we are ALLOWED to check based on the lock
         check_primary = False
         check_fallback = False
+        check_title_fallback = False
         check_vol = False
 
         if is_viable:
             # STRICT LOCK: Only check the pattern family we are currently locked into
             if active_pattern_mode == 'primary': check_primary = True
             elif active_pattern_mode == 'fallback': check_fallback = True
+            elif active_pattern_mode == 'title_fallback': check_title_fallback = True
             elif active_pattern_mode == 'vol': check_vol = True
         else:
             # UNLOCKED: The previous pattern is no longer viable (or we just started).
-            # We check all of them, strictly prioritizing the first pattern.
+            # We check all of them, strictly prioritizing from top to bottom.
             check_primary = True
             check_fallback = True
+            check_title_fallback = True
             check_vol = True
 
         # 1. Test Primary Pattern (Highest Priority)
@@ -126,7 +135,21 @@ def extract_chapters(text):
                 if is_new_chapter:
                     active_pattern_mode = 'fallback' # Lock into fallback
 
-        # 3. Test Volume Pattern (Lowest Priority)
+        # 3. Test Title Fallback Pattern (Third Priority)
+        if not is_new_chapter and check_title_fallback:
+            title_fallback_match = title_fallback_pattern.match(clean_line)
+            if title_fallback_match:
+                matched_num = int(title_fallback_match.group(1))
+                # Validate that this number makes logical sense in the current sequence
+                is_sequential = (last_main_chapter == 0) or (matched_num > last_main_chapter and (matched_num - last_main_chapter) <= 5)
+                
+                # Length check guarantees we don't accidentally split on a long descriptive sentence
+                if is_sequential and len(clean_line) <= 60:
+                    val_to_check = matched_num
+                    is_new_chapter = True
+                    active_pattern_mode = 'title_fallback' # Lock into title fallback
+
+        # 4. Test Volume Pattern (Lowest Priority)
         if not is_new_chapter and check_vol:
             vol_match = vol_pattern.match(clean_line)
             if vol_match:
