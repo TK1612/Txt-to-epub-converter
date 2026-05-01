@@ -16,9 +16,9 @@ fallback_pattern = re.compile(
     re.UNICODE
 )
 
-# NEW: Title Fallback pattern for matching formats like "특성 쌓는 김전사 375화 외전 완결"
+# UPGRADED: Title Fallback pattern, now tolerant of trailing punctuation/invisible characters
 title_fallback_pattern = re.compile(
-    r"^.*?(?:\s|^)(\d+)\s*화\s*(?:외전\s*)?(?:완결\s*)?$",
+    r"^.*?(?:\s|^)(\d+)\s*화\s*(?:외전\s*)?(?:완결\s*)?[^\w\d]*$",
     re.UNICODE
 )
 
@@ -84,14 +84,21 @@ def extract_chapters(text):
         check_vol = False
 
         if is_viable:
-            # STRICT LOCK: Only check the pattern family we are currently locked into
-            if active_pattern_mode == 'primary': check_primary = True
-            elif active_pattern_mode == 'fallback': check_fallback = True
-            elif active_pattern_mode == 'title_fallback': check_title_fallback = True
-            elif active_pattern_mode == 'vol': check_vol = True
+            # FIXED STRICT LOCK: Allow the title_fallback to always act as a safety net, 
+            # and allow returning to primary if we used the safety net.
+            if active_pattern_mode == 'primary': 
+                check_primary = True
+                check_title_fallback = True  # Safety net enabled
+            elif active_pattern_mode == 'fallback': 
+                check_fallback = True
+                check_title_fallback = True  # Safety net enabled
+            elif active_pattern_mode == 'title_fallback': 
+                check_title_fallback = True
+                check_primary = True         # Allow transition back to normal primary
+            elif active_pattern_mode == 'vol': 
+                check_vol = True
         else:
-            # UNLOCKED: The previous pattern is no longer viable (or we just started).
-            # We check all of them, strictly prioritizing from top to bottom.
+            # UNLOCKED: Check all
             check_primary = True
             check_fallback = True
             check_title_fallback = True
