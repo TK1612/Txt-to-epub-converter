@@ -5,14 +5,16 @@ primary_pattern = re.compile(
     r"^[^\w\s]*(\d+)화.*\((\d+)\)(?=\s|$|\W)|"
     r".*?\s(\d+)화$|"
     r"^[^\w\s]*(\d+)화(?![.\s]*프롤로그)(?=\s|$|\W|[편부상중하])|"
-    r"^[^\w\s]*(?:0[화\.]*\s*)?(프롤로그)(?=\s|$|\W)",
+    r"^[^\w\s]*(?:0[화\.]*\s*)?(프롤로그)(?=\s|$|\W)|"
+    r"^#(\d+)(?=\s|$|\W)",  # Group 9: Direct match for strict '#003' style lines
     re.UNICODE
 )
 
 fallback_pattern = re.compile(
     r"^[^\w\s]*(?:제\s*)?(?:(\d+)\s*부\s*)?(\d+)\s*화|" 
     r"^[^\w\s]*(\d+)\.\s+.*\((\d+)\)|"
-    r"^[^\w\s]*(\d+)\.\s+",
+    r"^[^\w\s]*(\d+)\.\s+|"
+    r"^[^\w\s]*#\s*(\d+)(?=\s|$|\W)",  # Group 6: Looser fallback for general '#' followed by number
     re.UNICODE
 )
 
@@ -111,8 +113,8 @@ def extract_chapters(text):
                 if primary_match.group(2) == '외전': 
                     val_to_check = int(primary_match.group(1)) if primary_match.group(1) else last_main_chapter
                     is_new_chapter = True
-                elif primary_match.group(4) or primary_match.group(6) or primary_match.group(7): 
-                    val_to_check = int(primary_match.group(4) or primary_match.group(6) or primary_match.group(7))
+                elif primary_match.group(4) or primary_match.group(6) or primary_match.group(7) or primary_match.group(9): 
+                    val_to_check = int(primary_match.group(4) or primary_match.group(6) or primary_match.group(7) or primary_match.group(9))
                     is_new_chapter = True
                 elif primary_match.group(8) == '프롤로그' and not extracted_prologue and last_main_chapter == 0:
                     val_to_check = 0
@@ -133,7 +135,7 @@ def extract_chapters(text):
                         val_to_check = matched_num
                         is_new_chapter = True
                 else:
-                    matched_num = int(fallback_match.group(3) or fallback_match.group(5))
+                    matched_num = int(fallback_match.group(3) or fallback_match.group(5) or fallback_match.group(6))
                     is_sequential = (last_main_chapter == 0) or (matched_num > last_main_chapter and (matched_num - last_main_chapter) <= 5)
                     if is_sequential and not (clean_line.endswith(".") or clean_line.endswith("?") or clean_line.endswith("!")) and len(clean_line) <= 50:
                         val_to_check = matched_num
