@@ -29,17 +29,19 @@ def generate_html_files(edited_toc, chapters_data, search_pattern=None, replace_
             "<html>", 
             "<head>",
             "<meta charset='UTF-8'>",
-            f"<title>{final_title}</title>",
+            f"<title>{final_title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')}</title>",
             "</head>", 
             "<body>"
         ]
         
-        h1_text = final_title.replace('<', '&lt;').replace('>', '&gt;')
+        # CRITICAL FIX: Sanitize the main H1 title for strict XML/XHTML validation
+        h1_text = final_title.replace("&", "&amp;").replace('<', '&lt;').replace('>', '&gt;')
         h1_set = False
         processed_body_lines = []
         
         for line in original_lines[1:]:
-            line_safe = line.replace("<", "&lt;").replace(">", "&gt;")
+            # CRITICAL FIX: Escape '&' FIRST, then replace bracket characters
+            line_safe = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             
             if not h1_set:
                 if is_invisible(line_safe):
@@ -81,7 +83,6 @@ def generate_html_files(edited_toc, chapters_data, search_pattern=None, replace_
         # --- 2. APPLY RANGED REGEX RULES ---
         if regex_rules:
             for rule in regex_rules:
-                # Check if the current chapter falls within the rule's range
                 if rule["start"] <= actual_i <= rule["end"]:
                     if rule["search"] and rule["replace"]:
                         try:
