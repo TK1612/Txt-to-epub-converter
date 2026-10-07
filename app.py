@@ -2,8 +2,6 @@ import streamlit as st
 import zipfile
 import io
 import time
-import modules.splitter as _s
-st.caption(f"{_s.__file__} | EP: {'[Ee][Pp]' in _s.primary_pattern.pattern}")
 from modules.splitter import extract_chapters
 from modules.scanner import check_missing_chapters, check_inconsistencies
 from modules.html_converter import generate_html_files
