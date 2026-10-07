@@ -6,7 +6,8 @@ primary_pattern = re.compile(
     r".*?\s(\d+)화$|"
     r"^[^\w\s]*(\d+)화(?![.\s]*프롤로그)(?=\s|$|\W|[편부상중하])|"
     r"^[^\w\s]*(?:0[화\.]*\s*)?(프롤로그)(?=\s|$|\W)|"
-    r"^#(\d+)(?=\s|$|\W)",  # Group 9: Direct match for strict '#003' style lines
+    r"^#(\d+)(?=\s|$|\W)|"                                   # Group 9
+    r"^[^\w\s]*[Ee][Pp]\s*\.?\s*(\d+)(?=\s|$|[^\w]|[화편부상중하])",  # Group 10: "EP.1 제목", "EP 1", "ep.12"
     re.UNICODE
 )
 
