@@ -114,7 +114,7 @@ def extract_chapters(text):
                 if primary_match.group(2) == '외전': 
                     val_to_check = int(primary_match.group(1)) if primary_match.group(1) else last_main_chapter
                     is_new_chapter = True
-                elif primary_match.group(4) or primary_match.group(6) or primary_match.group(7) or primary_match.group(9): 
+                elif primary_match.group(4) or primary_match.group(6) or primary_match.group(7) or primary_match.group(9) or primary_match.group(10): 
                     val_to_check = int(primary_match.group(4) or primary_match.group(6) or primary_match.group(7) or primary_match.group(9) or primary_match.group(10))
                     is_new_chapter = True
                 elif primary_match.group(8) == '프롤로그' and not extracted_prologue and last_main_chapter == 0:
